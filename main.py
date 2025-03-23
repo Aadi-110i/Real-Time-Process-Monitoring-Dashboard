@@ -1,140 +1,131 @@
-import sys
 import psutil
-import time
-from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QTableWidget, \
-    QTableWidgetItem, QLabel, QLineEdit, QMessageBox
-from PyQt6.QtCore import QTimer
-from PyQt6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis
+import sys
+
+from PyQt6.QtWidgets import (
+QApplication, QWidget, QVBoxLayout, QLabel, QPushButton,
+
+QTableWidget, QTableWidgetItem, QTabWidget, QProgressBar,
+QHBoxLayout)
+
+from PyQt6. QtCore import QTimer, Qt
+
+from PyQt6.QtGui import QFont
 
 
-class ProcessMonitor(QMainWindow):
+
+class ProcessM(QWidget):
     def __init__(self):
         super().__init__()
 
-        # Window properties
-        self.setWindowTitle("Real-Time Process Monitoring Dashboard")
-        self.setGeometry(200, 200, 800, 600)
+        # Set window properties
+        self.setWindowTitle(" Monitoring dashboard ")
+        self.setGeometry(300, 300, 900, 500)
+        #background black
+        self.setStyleSheet(" background-color: #121212")
 
-        # Main layout
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        self.layout = QVBoxLayout()
-        self.central_widget.setLayout(self.layout)
+        # Main Layout
+        main_layout = QVBoxLayout()
 
-        # Process Table
-        self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["PID", "Process Name", "CPU Usage (%)", "Memory Usage (%)"])
-        self.layout.addWidget(self.table)
+        #ui part
+        self.tabs = QTabWidget()
+        main_layout.addWidget(self.tabs)
 
-        # Search Bar
-        self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Search for a process...")
-        self.search_bar.textChanged.connect(self.update_table)
-        self.layout.addWidget(self.search_bar)
+        # System Usage Tab
+        self.usage_tab = QWidget()
+        self.usage_layout = QVBoxLayout()
 
-        # Kill Process Input & Button
-        self.kill_input = QLineEdit()
-        self.kill_input.setPlaceholderText("Enter PID to kill")
-        self.layout.addWidget(self.kill_input)
+        self.cpu_label = QLabel("🖥️ CPU Usage: 0%")
+        self.memory_label = QLabel("💾 Memory Usage: 0%")
 
-        self.kill_button = QPushButton("Kill Process")
-        self.kill_button.clicked.connect(self.kill_process)
-        self.layout.addWidget(self.kill_button)
+        # Font Styling
+        self.cpu_label.setFont(QFont("Times New Roman", 13, QFont.Weight.Bold))
+        self.memory_label.setFont(QFont("Times New Roman", 13, QFont.Weight.Bold))
 
-        # CPU & Memory Usage Graphs
-        self.cpu_series = QLineSeries()
-        self.memory_series = QLineSeries()
+        self.cpu_bar = QProgressBar()
+        self.memory_bar = QProgressBar()
 
-        self.chart = QChart()
-        self.chart.addSeries(self.cpu_series)
-        self.chart.addSeries(self.memory_series)
-        self.chart.createDefaultAxes()
-        self.chart.setTitle("CPU & Memory Usage Over Time")
+        self.cpu_bar.setFormat("%p% ⚡")
+        self.memory_bar.setFormat("%p% 🚀")
 
-        self.chart_view = QChartView(self.chart)
-        self.layout.addWidget(self.chart_view)
+        self.usage_layout.addWidget(self.cpu_label)
+        self.usage_layout.addWidget(self.cpu_bar)
+        self.usage_layout.addWidget(self.memory_label)
+        self.usage_layout.addWidget(self.memory_bar)
+        self.usage_tab.setLayout(self.usage_layout)
+        self.tabs.addTab(self.usage_tab, " System Usage")
 
-        # Timer to update data every second
+        # Process List Tab
+        self.process_tab = QWidget()
+        self.process_table = QTableWidget()
+        self.process_layout = QVBoxLayout()
+        self.process_table.setColumnCount(4)
+        self.process_table.setHorizontalHeaderLabels(["Process ID", "Process Name ", "CPU", "Memory"])
+
+        self.process_table.setSortingEnabled(True)
+        self.process_layout.addWidget(self.process_table)
+        self.process_tab.setLayout(self.process_layout)
+
+        self.tabs.addTab(self.process_tab," Processes ")
+
+        # Control Buttons
+        self.button_layout = QHBoxLayout()
+        self.refresh_button = QPushButton("Refresh")
+        self.start_button = QPushButton("▶ Start Monitoring ")
+        self.stop_button = QPushButton("⏸ Stop Monitoring ")
+
+        self.refresh_button.clicked.connect(self.update_process_list)
+        self.start_button.clicked.connect(self.start_monitoring)
+        self.stop_button.clicked.connect(self.stop_monitoring)
+
+        self.button_layout.addWidget(self.refresh_button)
+        self.button_layout.addWidget(self.start_button)
+        self.button_layout.addWidget(self.stop_button)
+
+        main_layout.addLayout(self.button_layout)
+        self.setLayout(main_layout)
+
+        # Timer for Auto-Refresh
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_data)
-        self.timer.start(1000)  # 1000ms = 1 second
+        #timeout.connect(self.update_process_list)
+        self.timer.timeout.connect(self.update_process_list)
 
-        # Store data points for graph
-        self.time_counter = 0
-        self.cpu_usage_data = []
-        self.memory_usage_data = []
+        #updates every 2 sec
+        self.timer.start(3000)
 
-    def update_data(self):
-        """ Updates the process table and CPU/Memory usage graph """
-        self.update_table()
+        self.update_process_list()  # Initial Load
 
-        # Get CPU & Memory usage
-        cpu_usage = psutil.cpu_percent()
-        memory_usage = psutil.virtual_memory().percent
+    def update_process_list(self):
+        """Fetch and display system usage and processes"""
+        cpu_usage = int(psutil.cpu_percent())
+        memory_usage = int(psutil.virtual_memory().percent)
 
-        # Append data
-        self.cpu_usage_data.append((self.time_counter, cpu_usage))
-        self.memory_usage_data.append((self.time_counter, memory_usage))
-        self.time_counter += 1
+        self.cpu_label.setText(f"🖥 CPU Usage: {cpu_usage}%")
+        self.memory_label.setText(f" Memory Usage: {memory_usage}%")
 
-        # Update Graph
-        self.cpu_series.clear()
-        self.memory_series.clear()
+        self.cpu_bar.setValue(cpu_usage)
+        self.memory_bar.setValue(memory_usage)
 
-        for time, value in self.cpu_usage_data[-20:]:
-            self.cpu_series.append(time, value)
+        processes = list(psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'memory_percent']))
+        self.process_table.setRowCount(len(processes))
 
-        for time, value in self.memory_usage_data[-20:]:
-            self.memory_series.append(time, value)
+        for row, proc in enumerate(processes):
+            process_id =proc.info.get('pid','N/A')
+            self.process_table.setItem(row, 0, QTableWidgetItem(str(process_id)))
+            self.process_table.setItem(row, 1, QTableWidgetItem(proc.info['name']))
+            self.process_table.setItem(row, 2, QTableWidgetItem(f"{proc.info['cpu_percent']:.2f}%"))
+            self.process_table.setItem(row, 3, QTableWidgetItem(f"{proc.info['memory_percent']:.2f}%"))
 
-    def update_table(self):
-        """ Updates the process list table dynamically """
-        self.table.setRowCount(0)
-        search_text = self.search_bar.text().lower()
+#restarts in every 3sec gap
+    def start_monitoring(self):
+        self.timer.start(3000)
 
-        for proc in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'memory_percent']):
-            try:
-                pid = proc.info['pid']
-                name = proc.info['name']
-                cpu = proc.info['cpu_percent']
-                memory = proc.info['memory_percent']
-
-                # Filter based on search text
-                if search_text and search_text not in name.lower():
-                    continue
-
-                row_position = self.table.rowCount()
-                self.table.insertRow(row_position)
-                self.table.setItem(row_position, 0, QTableWidgetItem(str(pid)))
-                self.table.setItem(row_position, 1, QTableWidgetItem(name))
-                self.table.setItem(row_position, 2, QTableWidgetItem(f"{cpu:.2f}"))
-                self.table.setItem(row_position, 3, QTableWidgetItem(f"{memory:.2f}"))
-
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                continue
-
-    def kill_process(self):
-        """ Kills a process based on user input PID """
-        pid_text = self.kill_input.text()
-        if not pid_text.isdigit():
-            QMessageBox.warning(self, "Error", "Please enter a valid PID.")
-            return
-
-        pid = int(pid_text)
-        try:
-            proc = psutil.Process(pid)
-            proc.terminate()
-            QMessageBox.information(self, "Success", f"Process {pid} terminated.")
-            self.update_table()  # Refresh table after killing process
-        except psutil.NoSuchProcess:
-            QMessageBox.warning(self, "Error", "Process not found.")
-        except psutil.AccessDenied:
-            QMessageBox.warning(self, "Error", "Access Denied! Run as administrator.")
+    # Stop the auto-refresh
+    def stop_monitoring(self):
+        self.timer.stop()
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = ProcessMonitor()
-    window.show()
-    sys.exit(app.exec())
+# Run the Application
+app = QApplication(sys.argv)
+window = ProcessM()
+window.show()
+sys.exit(app.exec())
