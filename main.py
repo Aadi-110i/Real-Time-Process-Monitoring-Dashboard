@@ -34,8 +34,8 @@ class ProcessM(QWidget):
         self.usage_tab = QWidget()
         self.usage_layout = QVBoxLayout()
 
-        self.cpu_label = QLabel("🖥️ CPU Usage: 0%")
-        self.memory_label = QLabel("💾 Memory Usage: 0%")
+        self.cpu_label = QLabel("CPU Usage: 0%")
+        self.memory_label = QLabel("Memory Usage: 0%")
 
         # Font Styling
         self.cpu_label.setFont(QFont("Times New Roman", 13, QFont.Weight.Bold))
@@ -44,8 +44,8 @@ class ProcessM(QWidget):
         self.cpu_bar = QProgressBar()
         self.memory_bar = QProgressBar()
 
-        self.cpu_bar.setFormat("%p% ⚡")
-        self.memory_bar.setFormat("%p% 🚀")
+        self.cpu_bar.setFormat("%p%")
+        self.memory_bar.setFormat("%p%")
 
         self.usage_layout.addWidget(self.cpu_label)
         self.usage_layout.addWidget(self.cpu_bar)
@@ -95,7 +95,9 @@ class ProcessM(QWidget):
         self.update_process_list()  # Initial Load
 
     def update_process_list(self):
-        """Fetch and display system usage and processes"""
+        
+        #Fetch and display system usage and processes
+        
         cpu_usage = int(psutil.cpu_percent())
         memory_usage = int(psutil.virtual_memory().percent)
 
@@ -118,28 +120,6 @@ class ProcessM(QWidget):
 #restarts in every 3sec gap
     def start_monitoring(self):
         self.timer.start(3000)
-
-    # Stop the auto-refresh
-    def stop_monitoring(self):
-        self.timer.stop()
-     def kill_process(self):
-        """ Kills a process based on user input PID """
-         
-        pid_text = self.kill_input.text()
-        if not pid_text.isdigit():
-            QMessageBox.warning(self, "Error", "Please enter a valid PID.")
-            return
-
-        pid = int(pid_text)
-        try:
-            proc = psutil.Process(pid)
-            proc.terminate()
-            QMessageBox.information(self, "Success", f"Process {pid} terminated.")
-            self.update_table()  # Refresh table after killing process
-        except psutil.NoSuchProcess:
-            QMessageBox.warning(self, "Error", "Process not found.")
-        except psutil.AccessDenied:
-            QMessageBox.warning(self, "Error", "Access Denied! Run as administrator.")
 
 
 # Run the Application
