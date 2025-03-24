@@ -2,9 +2,9 @@ import psutil
 import sys
 
 from PyQt6.QtWidgets import (
-QApplication, QWidget, QVBoxLayout, QLabel, QPushButton,
+QApplication,QWidget,QVBoxLayout,QLabel, QPushButton,
 
-QTableWidget, QTableWidgetItem, QTabWidget, QProgressBar,
+QTableWidget,QTableWidgetItem, QTabWidget, QProgressBar,
 QHBoxLayout)
 
 from PyQt6. QtCore import QTimer, Qt
@@ -122,6 +122,24 @@ class ProcessM(QWidget):
     # Stop the auto-refresh
     def stop_monitoring(self):
         self.timer.stop()
+     def kill_process(self):
+        """ Kills a process based on user input PID """
+         
+        pid_text = self.kill_input.text()
+        if not pid_text.isdigit():
+            QMessageBox.warning(self, "Error", "Please enter a valid PID.")
+            return
+
+        pid = int(pid_text)
+        try:
+            proc = psutil.Process(pid)
+            proc.terminate()
+            QMessageBox.information(self, "Success", f"Process {pid} terminated.")
+            self.update_table()  # Refresh table after killing process
+        except psutil.NoSuchProcess:
+            QMessageBox.warning(self, "Error", "Process not found.")
+        except psutil.AccessDenied:
+            QMessageBox.warning(self, "Error", "Access Denied! Run as administrator.")
 
 
 # Run the Application
